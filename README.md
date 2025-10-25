@@ -95,6 +95,14 @@ Token is still valid.
 - Do **not** commit real credentials or tokens.
 - For production integration, use AWS SDKs or Cognito’s official API flows.
 
+### Why Not Use the InitiateAuth API Instead?
+While the `InitiateAuth` API (e.g., with `USER_PASSWORD_AUTH`) is a valid alternative for direct token retrieval, companies often avoid it due to these common practical reasons:
+- **Security Policy (Password Handling):** Many organizations prohibit sending raw passwords in API payloads to prevent interception or logging risks. They enforce SRP (Secure Remote Password) or UI-based flows instead.
+- **App Client Restrictions:** The Cognito app client must have `ALLOW_USER_PASSWORD_AUTH` enabled. If disabled (common for security), the API fails, and policies may forbid enabling it.
+- **IAM Policy Restrictions:** Backend roles are often scoped to exclude auth operations like `InitiateAuth`, limiting access to read-only or specific actions to prevent credential misuse.
+
+If these constraints don't apply, `InitiateAuth` with SRP can be a cleaner option for automation.
+
 ---
 
 ## 📂 Repository Structure
