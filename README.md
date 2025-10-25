@@ -15,7 +15,7 @@ This repository demonstrates how to simulate that flow programmatically inside P
 The collection mimics the Cognito hosted login sequence using Postman scripting capabilities:
 
 1. Sends a `POST` request to the Cognito `/login` endpoint, simulating the hosted UI login form.
-2. Intercepts the `Location` header in the redirect response, extracting the `id_token` and `access_token`.
+2. Intercepts the `Location` header in the redirect response, extracting the `id_token` and `access_token` (requires "Automatically follow redirects" to be disabled in Postman settings).
 3. Stores the token globally in Postman and timestamps its creation.
 4. Checks token expiry before each request and automatically fetches a new one when needed.
 5. Injects the valid token into the `Authorization` header for all secured API calls.
@@ -29,11 +29,13 @@ sequenceDiagram
 
   User->>Postman: Run collection
   Postman->>Cognito: Simulate hosted UI login
-  Cognito-->>Postman: Redirect with ID token (in Location header)
+  Cognito-->>Postman: 302 Redirect (Location header with ID token)
   Postman->>Postman: Parse header, store token globally
   Postman->>API: Inject token in Authorization header
   API-->>Postman: Authenticated response
 ```
+
+> *Note:* Automatic redirect following must be disabled in Postman settings to capture the Location header.
 
 ---
 
@@ -42,6 +44,7 @@ sequenceDiagram
 ### Requirements
 - Postman (v10 or higher)
 - AWS Cognito User Pool with Hosted UI enabled
+- App client with Implicit grant enabled (required for token extraction from redirects)
 - Basic familiarity with environment variables in Postman
 
 ### Configuration
@@ -52,7 +55,15 @@ sequenceDiagram
    - `username`
    - `password`
    - `region`
-3. Run the **Users → Get Token** request to initialize authentication.
+3. **Important:** Disable "Automatically follow redirects" in Postman settings.
+   > This ensures the `/login` response stops at the redirect, allowing the token extraction.
+   > **Steps (as of Postman v11.68.5):**
+   > - Open Postman.
+   > - Go to File > Settings (or press Ctrl + ,).
+   > - Select the General tab.
+   > - Uncheck the "Automatically follow redirects" option.
+   > - Click Save.
+4. Run the **Users → Get Token** request to initialize authentication.
 
 ---
 
@@ -110,9 +121,9 @@ MIT License © 2025 [Saeed Badran](https://www.linkedin.com/in/sbadran)
 ---
 
 ## 🌍 About
-Created by **Saeed Badran**  
-Senior Backend Engineer | FinTech & Distributed Systems  
+Created by **Saeed Badran**
+Senior Backend Engineer | FinTech & Distributed Systems
 
-> Contributions and PRs are welcome!  
+> Contributions and PRs are welcome!
 > If you found this helpful, check out the companion article on Medium: *How I Automated AWS Cognito Token Retrieval in Postman Without the Hosted UI*
 

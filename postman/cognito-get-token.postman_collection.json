@@ -1,0 +1,197 @@
+{
+    "info": {
+        "name": "AWS Cognito Token Automation",
+        "_postman_id": "cognito-token-automation-uuid",
+        "description": "Automates AWS Cognito token retrieval and refresh for Postman API testing.",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "item": [
+        {
+            "name": "Users",
+            "item": [
+                {
+                    "name": "Get Token",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "// Post-response script for Get Token request",
+                                    "console.log('Getting a new token from Cognito...');",
+                                    "try {",
+                                    "    pm.globals.set('get_token_request', JSON.stringify(pm.request));",
+                                    "    const locHeader = pm.response.headers.get('Location');",
+                                    "    if (!locHeader) throw new Error('No Location header found in response.');",
+                                    "    const idToken = locHeader.substring(",
+                                    "        locHeader.indexOf('id_token=') + 9,",
+                                    "        locHeader.indexOf('&access_token')",
+                                    "    );",
+                                    "    if (!idToken) throw new Error('Unable to extract ID token.');",
+                                    "    pm.globals.set('id_token', idToken);",
+                                    "    pm.globals.set('id_token_created_at', new Date());",
+                                    "    console.log(`New ID token saved: ...${idToken.slice(-15)}`);",
+                                    "} catch (err) {",
+                                    "    console.error('Token extraction failed:', err);",
+                                    "}"
+                                ]
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "content-type",
+                                "value": "application/x-www-form-urlencoded"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{cognito_base_url}}/login",
+                            "host": [
+                                "{{cognito_base_url}}"
+                            ],
+                            "path": [
+                                "login"
+                            ]
+                        },
+                        "body": {
+                            "mode": "urlencoded",
+                            "urlencoded": [
+                                {
+                                    "key": "username",
+                                    "value": "{{username}}"
+                                },
+                                {
+                                    "key": "password",
+                                    "value": "{{password}}"
+                                },
+                                {
+                                    "key": "client_id",
+                                    "value": "{{client_id}}"
+                                },
+                                {
+                                    "key": "redirect_uri",
+                                    "value": "{{redirect_uri}}"
+                                },
+                                {
+                                    "key": "response_type",
+                                    "value": "token"
+                                },
+                                {
+                                    "key": "scope",
+                                    "value": "aws.cognito.signin.user.admin openid profile"
+                                }
+                            ]
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Payments",
+            "item": [
+                {
+                    "name": "Send Payment",
+                    "event": [
+                        {
+                            "listen": "prerequest",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "// Pre-request script to validate and refresh Cognito token",
+                                    "console.log('🔐 Checking Cognito token validity...');",
+                                    "try {",
+                                    "    const createdAt = new Date(pm.globals.get('id_token_created_at'));",
+                                    "    const token = pm.globals.get('id_token');",
+                                    "    const requestOptions = JSON.parse(pm.globals.get('get_token_request') || '{}');",
+                                    "    if (!token || !createdAt) {",
+                                    "        console.warn('⚠️ No existing token found — retrieving a new one.');",
+                                    "        pm.sendRequest(requestOptions, (err, res) => {",
+                                    "            if (err) return console.error('Token request failed:', err);",
+                                    "            const loc = res.headers.get('Location');",
+                                    "            if (!loc) return console.error('No Location header found.');",
+                                    "            const newToken = loc.substring(",
+                                    "                loc.indexOf('id_token=') + 9,",
+                                    "                loc.indexOf('&access_token')",
+                                    "            );",
+                                    "            pm.globals.set('id_token', newToken);",
+                                    "            pm.globals.set('id_token_created_at', new Date());",
+                                    "            console.log(`Token refreshed: ...${newToken.slice(-15)}`);",
+                                    "        });",
+                                    "        return;",
+                                    "    }",
+                                    "    const now = new Date();",
+                                    "    const age = now - createdAt;",
+                                    "    const expired = age > 60 * 60 * 1000;",
+                                    "    if (expired) {",
+                                    "        console.log('🔁 Token expired — refreshing...');",
+                                    "        pm.sendRequest(requestOptions, (err, res) => {",
+                                    "            if (err) return console.error('Failed to refresh token:', err);",
+                                    "            const loc = res.headers.get('Location');",
+                                    "            const newToken = loc.substring(",
+                                    "                loc.indexOf('id_token=') + 9,",
+                                    "                loc.indexOf('&access_token')",
+                                    "            );",
+                                    "            pm.globals.set('id_token', newToken);",
+                                    "            pm.globals.set('id_token_created_at', new Date());",
+                                    "            console.log(`New token obtained: ...${newToken.slice(-15)}`);",
+                                    "        });",
+                                    "    } else {",
+                                    "        console.log('Token is still valid.');",
+                                    "    }",
+                                    "} catch (err) {",
+                                    "    console.error('❌ Pre-request script error:', err);",
+                                    "}"
+                                ]
+                            }
+                        },
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "// Post-response: store payment ID for future use",
+                                    "const res = pm.response.json();",
+                                    "const paymentId = res?.data?.id;",
+                                    "if (paymentId) {",
+                                    "    pm.globals.set('payment_id', paymentId);",
+                                    "    console.log(`💰 Payment created: ID ${paymentId}`);",
+                                    "} else {",
+                                    "    console.warn('No payment ID found in response.');",
+                                    "}"
+                                ]
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{id_token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{api_host}}/payments",
+                            "host": [
+                                "{{api_host}}"
+                            ],
+                            "path": [
+                                "payments"
+                            ]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"sender_phone\": \"+962798340038\",\n    \"receiver_phone\": \"+962779968675\",\n    \"payment_type\": 1,\n    \"amount\": 202,\n    \"currency\": 1\n}"
+                        }
+                    }
+                }
+            ]
+        }
+    ]
+}
