@@ -1,5 +1,7 @@
 # Automating AWS Cognito Token Retrieval in Postman
 
+*Last verified on: October 2025 (Cognito v2 APIs)*
+
 A lightweight Postman-based solution that automates AWS Cognito authentication without manual login or SDKs.
 
 ---
@@ -11,11 +13,16 @@ This repository demonstrates how to simulate that flow programmatically inside P
 
 ---
 
+## 👩‍💻 Who Should Use This
+Backend developers working with Cognito-secured APIs who want to test endpoints directly from Postman or automate local/CI testing without browser-based login.
+
+---
+
 ## ⚙️ How It Works
 The collection mimics the Cognito hosted login sequence using Postman scripting capabilities:
 
 1. Sends a `POST` request to the Cognito `/login` endpoint, simulating the hosted UI login form.
-2. Intercepts the `Location` header in the redirect response, extracting the `id_token` and `access_token` (requires "Automatically follow redirects" to be disabled in Postman settings).
+2. Intercepts the `Location` header in the redirect response, extracting the `id_token` and `access_token` (requires disabling Automatically follow redirects in Postman settings).
 3. Stores the token globally in Postman and timestamps its creation.
 4. Checks token expiry before each request and automatically fetches a new one when needed.
 5. Injects the valid token into the `Authorization` header for all secured API calls.
@@ -91,6 +98,10 @@ Token is still valid.
 ---
 
 ## 🔐 Security Notes
+> 🧩 This repository includes both approaches:
+> - `postman/` → Hosted UI redirect-based automation (no SDKs)
+> - `InitiateAuth/` → Official Cognito API–based token retrieval (no redirects)
+
 - This method is intended **only for development and testing environments**.
 - Do **not** commit real credentials or tokens.
 - For production integration, use AWS SDKs or Cognito’s official API flows.
@@ -102,6 +113,11 @@ While the `InitiateAuth` API (e.g., with `USER_PASSWORD_AUTH`) is a valid altern
 - **IAM Policy Restrictions:** Backend roles are often scoped to exclude auth operations like `InitiateAuth`, limiting access to read-only or specific actions to prevent credential misuse.
 
 If these constraints don't apply, `InitiateAuth` with SRP can be a cleaner option for automation. For reference, an alternative Postman collection using `InitiateAuth` is provided in the `InitiateAuth/` directory.
+
+| Flow                  | Recommended When                      | Pros                | Cons                           |
+| --------------------- | ------------------------------------- | ------------------- | ------------------------------ |
+| Hosted UI (this repo) | Quick dev testing, Postman automation | Fast setup, no SDKs | Not for prod                   |
+| InitiateAuth API      | SDK or backend automation             | Official, stable    | Needs credentials & IAM config |
 
 ---
 
