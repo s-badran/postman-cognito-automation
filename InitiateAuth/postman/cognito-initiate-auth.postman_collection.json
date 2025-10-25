@@ -1,0 +1,175 @@
+{
+  "info": {
+    "name": "Cognito InitiateAuth API",
+    "description": "Alternative implementation using AWS Cognito InitiateAuth API for token retrieval",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Users",
+      "item": [
+        {
+          "name": "Get Token via InitiateAuth",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/x-amz-json-1.1"
+              },
+              {
+                "key": "X-Amz-Target",
+                "value": "AWSCognitoIdentityProviderService.InitiateAuth"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"AuthFlow\": \"USER_PASSWORD_AUTH\",\n  \"ClientId\": \"{{client_id}}\",\n  \"AuthParameters\": {\n    \"USERNAME\": \"{{username}}\",\n    \"PASSWORD\": \"{{password}}\"\n  }\n}"
+            },
+            "url": {
+              "raw": "https://cognito-idp.{{region}}.amazonaws.com/",
+              "protocol": "https",
+              "host": [
+                "cognito-idp",
+                "{{region}}",
+                "amazonaws",
+                "com"
+              ],
+              "path": [
+                ""
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "console.log('Getting a new token using InitiateAuth...');",
+                  "const response = pm.response.json();",
+                  "const result = response.AuthenticationResult;",
+                  "",
+                  "if (result && result.IdToken) {",
+                  "    pm.globals.set('id_token', result.IdToken);",
+                  "    pm.globals.set('id_token_created_at', new Date());",
+                  "    console.log(`New ID token saved: ...${result.IdToken.slice(-15)}`);",
+                  "} else {",
+                  "    console.error('Failed to get token:', response);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Payments",
+      "item": [
+        {
+          "name": "Send Payment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{id_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"amount\": 100, \"currency\": \"USD\"}"
+            },
+            "url": {
+              "raw": "{{base_url}}/payments",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "payments"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "console.log('Checking Cognito token validity...');",
+                  "",
+                  "try {",
+                  "  const createdAt = new Date(pm.globals.get('id_token_created_at'));",
+                  "  const token = pm.globals.get('id_token');",
+                  "  const requestOptions = JSON.parse(pm.globals.get('get_token_request') || '{}');",
+                  "",
+                  "  if (!token || !createdAt) {",
+                  "    console.warn('No existing token found — retrieving a new one.');",
+                  "    pm.sendRequest(requestOptions, (err, res) => {",
+                  "      if (err) {",
+                  "        console.error('Token request failed:', err);",
+                  "        return;",
+                  "      }",
+                  "      const locationHeader = res.headers.get('Location');",
+                  "      if (!locationHeader) {",
+                  "        console.error('No Location header found in token refresh response.');",
+                  "        return;",
+                  "      }",
+                  "      const newToken = locationHeader.substring(",
+                  "        locationHeader.indexOf('id_token=') + 9,",
+                  "        locationHeader.indexOf('&access_token')",
+                  "      );",
+                  "      pm.globals.set('id_token', newToken);",
+                  "      pm.globals.set('id_token_created_at', new Date());",
+                  "      console.log(`Token refreshed: ...${newToken.slice(-15)}`);",
+                  "    });",
+                  "    return;",
+                  "  }",
+                  "",
+                  "  // Check expiry (1 hour window)",
+                  "  const now = new Date();",
+                  "  const ageInMs = now - createdAt;",
+                  "  const expired = ageInMs > 60 * 60 * 1000; // 1 hour in ms",
+                  "",
+                  "  if (expired) {",
+                  "    console.log('Token expired — refreshing...');",
+                  "    pm.sendRequest(requestOptions, (err, res) => {",
+                  "      if (err) {",
+                  "        console.error('Failed to refresh token:', err);",
+                  "        return;",
+                  "      }",
+                  "      const locationHeader = res.headers.get('Location');",
+                  "      const newToken = locationHeader.substring(",
+                  "        locationHeader.indexOf('id_token=') + 9,",
+                  "        locationHeader.indexOf('&access_token')",
+                  "      );",
+                  "      pm.globals.set('id_token', newToken);",
+                  "      pm.globals.set('id_token_created_at', new Date());",
+                  "      console.log(`New token obtained: ...${newToken.slice(-15)}`);",
+                  "    });",
+                  "  } else {",
+                  "    console.log('Token is still valid.');",
+                  "  }",
+                  "} catch (err) {",
+                  "  console.error('Pre-request script error:', err);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "https://api.example.com"
+    }
+  ]
+}

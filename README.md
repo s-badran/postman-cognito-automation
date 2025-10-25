@@ -101,7 +101,7 @@ While the `InitiateAuth` API (e.g., with `USER_PASSWORD_AUTH`) is a valid altern
 - **App Client Restrictions:** The Cognito app client must have `ALLOW_USER_PASSWORD_AUTH` enabled. If disabled (common for security), the API fails, and policies may forbid enabling it.
 - **IAM Policy Restrictions:** Backend roles are often scoped to exclude auth operations like `InitiateAuth`, limiting access to read-only or specific actions to prevent credential misuse.
 
-If these constraints don't apply, `InitiateAuth` with SRP can be a cleaner option for automation.
+If these constraints don't apply, `InitiateAuth` with SRP can be a cleaner option for automation. For reference, an alternative Postman collection using `InitiateAuth` is provided in the `InitiateAuth/` directory.
 
 ---
 
@@ -116,6 +116,13 @@ postman-cognito-automation/
 ├── postman/
 │   ├── cognito-get-token.postman_collection.json
 │   └── cognito-env.postman_environment.json
+├── InitiateAuth/
+│   ├── postman/
+│   │   ├── cognito-initiate-auth.postman_collection.json
+│   │   └── cognito-env-initiate-auth.postman_environment.json
+│   └── scripts/
+│       ├── getTokenInitiateAuth.postresponse.js
+│       └── sendPaymentInitiateAuth.prerequest.js
 └── scripts/
     ├── getToken.postresponse.js
     └── sendPayment.prerequest.js
